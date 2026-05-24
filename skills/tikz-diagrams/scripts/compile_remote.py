@@ -48,15 +48,19 @@ def main() -> None:
         run(["git", "stash", "push", "--include-untracked", "-m", "compile_remote auto stash"], cwd=repo_root)
 
     try:
-        # Switch to orphan compile branch
+        # Delete old compile branch if it exists, then create fresh orphan
+        run(["git", "branch", "-D", args.branch], cwd=repo_root)
         run(["git", "checkout", "--orphan", args.branch], cwd=repo_root)
         run(["git", "rm", "-rf", "--quiet", "."], cwd=repo_root)
 
-        # Copy only the .tex file
+        # Restore .github from main so the workflow exists on compile branch
+        run(["git", "checkout", "main", "--", ".github/"], cwd=repo_root)
+
+        # Copy the .tex file
         import shutil
         target = repo_root / tex.name
         shutil.copy2(tex, target)
-        run(["git", "add", tex.name], cwd=repo_root)
+        run(["git", "add", ".github/", tex.name], cwd=repo_root)
         run(["git", "commit", "-m", f"compile: {name}"], cwd=repo_root)
         run(["git", "push", "--force", "origin", args.branch], cwd=repo_root)
 
