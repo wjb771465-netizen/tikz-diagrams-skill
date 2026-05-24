@@ -23,8 +23,17 @@ For visual and domain guidance, read only what is needed:
 
 - Prefer standalone `.tex` files for individual diagrams.
 - Use `xelatex` by default. Use `pdflatex` or `lualatex` only when the project requires it.
+
+### Local compilation (requires TeX distribution)
 - Use `scripts/check_tikz_safety.py` before compiling new or edited diagrams.
 - Use `scripts/compile_render.py` to compile `.tex` to `.pdf`, render `.png`, and, when the diagram is not purely exploratory, run rendered visual QA with `--visual-check`.
+
+### Remote compilation via GitHub Actions (no local TeX needed)
+- Use `scripts/compile_remote.py <file.tex>` to push the `.tex` to the `tikz-compile` branch, trigger GitHub Actions, wait for completion, and download PDF + PNG from the latest GitHub Release.
+- The workflow installs TeX Live on `ubuntu-latest`, runs `xelatex` twice, converts PDF to PNG via `pdftoppm`, and uploads outputs to a rolling `latest` release via `ncipollo/release-action`.
+- **Each diagram generation must be committed and pushed.** The `.tex` source lives in the skill repo on the `tikz-compile` branch; the release always reflects the most recent successful build.
+
+### Common (both modes)
 - Use `scripts/check_tikz_visual.py` when inspecting an already-rendered PDF for title-band collisions, text overlap, clipped labels, and crowded annotations.
 - Use `scripts/make_contact_sheet.py` for batches or iterations. Add `--show-qa` when visual QA reports exist.
 - Use `scripts/render_tikz_series.py` for controlled sequences of variants that update from a previous figure, such as teaching-to-research-to-compact versions.
