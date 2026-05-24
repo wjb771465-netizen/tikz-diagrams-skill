@@ -48,20 +48,23 @@ def main() -> None:
         run(["git", "stash", "push", "--include-untracked", "-m", "compile_remote auto stash"], cwd=repo_root)
 
     try:
-        # Delete old compile branch if it exists, then create fresh orphan
-        run(["git", "branch", "-D", args.branch], cwd=repo_root)
-        run(["git", "checkout", "--orphan", args.branch], cwd=repo_root)
-        run(["git", "rm", "-rf", "--quiet", "."], cwd=repo_root)
+        import shutil
 
-        # Restore .github from main so the workflow exists on compile branch
-        run(["git", "checkout", "main", "--", ".github/"], cwd=repo_root)
+        # Reset tikz-compile from main (so .github/ workflows are always present)
+        run(["git", "checkout", "-B", args.branch], cwd=repo_root)
+
+        # Remove everything except .git and .github
+        for item in list(repo_root.iterdir()):
+            if item.name not in (".git", ".github"):
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
 
         # Copy the .tex file
-        import shutil
-        target = repo_root / tex.name
-        shutil.copy2(tex, target)
-        run(["git", "add", ".github/", tex.name], cwd=repo_root)
-        run(["git", "commit", "-m", f"compile: {name}"], cwd=repo_root)
+        shutil.copy2(tex, repo_root / tex.name)
+        run(["git", "add", "-A"], cwd=repo_root)
+        run(["git", "commit", "--allow-empty", "-m", f"compile: {name}"], cwd=repo_root)
         run(["git", "push", "--force", "origin", args.branch], cwd=repo_root)
 
         print(f"[2/5] Waiting for GitHub Actions to start ...")
