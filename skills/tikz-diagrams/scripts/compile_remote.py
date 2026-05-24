@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import time
@@ -71,30 +72,30 @@ def main() -> None:
         time.sleep(3)
 
         # Find the workflow run
+        run_id = None
         for _ in range(60):
-            runs = run(["gh", "run", "list", "--workflow", "compile-tikz.yml", "--branch", args.branch,
-                         "--limit", "1", "--json", "databaseId,status,conclusion",
-                         "-q", ".[0] | \"\\(.databaseId) \\(.status) \\(.conclusion)\""], cwd=repo_root)
-            if runs and runs != "null null null":
+            raw = run(["gh", "run", "list", "--workflow", "compile-tikz.yml", "--branch", args.branch,
+                        "--limit", "1", "--json", "databaseId,status,conclusion"], cwd=repo_root)
+            items = json.loads(raw)
+            if items:
+                run_id = str(items[0]["databaseId"])
                 break
             time.sleep(2)
 
-        if not runs or runs == "null null null":
+        if not run_id:
             print("Error: workflow did not start", file=sys.stderr)
             sys.exit(1)
 
-        run_id, status, conclusion = runs.split(None, 2)
-        print(f"[3/5] Run ID: {run_id}, status: {status}")
+        print(f"[3/5] Run ID: {run_id}")
 
         # Wait for completion
+        conclusion = None
         for _ in range(120):
-            runs = run(["gh", "run", "list", "--workflow", "compile-tikz.yml", "--branch", args.branch,
-                         "--limit", "1", "--json", "databaseId,status,conclusion",
-                         "-q", ".[0] | \"\\(.databaseId) \\(.status) \\(.conclusion)\""], cwd=repo_root)
-            if runs and runs != "null null null":
-                _, status, conclusion = runs.split(None, 2)
-                if status == "completed":
-                    break
+            raw = run(["gh", "run", "view", run_id, "--json", "status,conclusion"], cwd=repo_root)
+            info = json.loads(raw)
+            if info.get("status") == "completed":
+                conclusion = info.get("conclusion", "")
+                break
             time.sleep(5)
         else:
             print("Error: workflow timed out", file=sys.stderr)
